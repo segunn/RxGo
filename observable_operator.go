@@ -1407,7 +1407,7 @@ type StringGroupedObservable struct {
 	Key string
 }
 
-// GroupByStringDynamic divides an Observable into a dynamic set of Observables that each emit GroupedObservable from the original Observable, organized by a key that is a string.
+// GroupByStringDynamic divides an Observable into a dynamic set of Observables that each emit StringGroupedObservable from the original Observable, organized by a key that is a string.
 func (o *ObservableImpl) GroupByStringDynamic(distribution func(Item) string, opts ...Option) Observable {
 	option := parseOptions(opts...)
 	next := option.buildChannel()
@@ -1430,7 +1430,7 @@ func (o *ObservableImpl) GroupByStringDynamic(distribution func(Item) string, op
 				if !contains {
 					ch = option.buildChannel()
 					chs[idx] = ch
-					Of(GroupedObservable{
+					Of(StringGroupedObservable{
 						Observable: &ObservableImpl{
 							iterable: newChannelIterable(ch),
 						},
