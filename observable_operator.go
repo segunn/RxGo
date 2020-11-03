@@ -1400,6 +1400,57 @@ func (o *ObservableImpl) GroupByDynamic(distribution func(Item) int, opts ...Opt
 	}
 }
 
+// StringGroupedObservable is the observable type emitted by the GroupByStringDynamic operator.
+type StringGroupedObservable struct {
+	Observable
+	// Key is the distribution key
+	Key string
+}
+
+// GroupByStringDynamic divides an Observable into a dynamic set of Observables that each emit GroupedObservable from the original Observable, organized by a key that is a string.
+func (o *ObservableImpl) GroupByStringDynamic(distribution func(Item) string, opts ...Option) Observable {
+	option := parseOptions(opts...)
+	next := option.buildChannel()
+	ctx := option.buildContext()
+	chs := make(map[string]chan Item)
+
+	go func() {
+		observe := o.Observe(opts...)
+	loop:
+		for {
+			select {
+			case <-ctx.Done():
+				break loop
+			case i, ok := <-observe:
+				if !ok {
+					break loop
+				}
+				idx := distribution(i)
+				ch, contains := chs[idx]
+				if !contains {
+					ch = option.buildChannel()
+					chs[idx] = ch
+					Of(GroupedObservable{
+						Observable: &ObservableImpl{
+							iterable: newChannelIterable(ch),
+						},
+						Key: idx,
+					}).SendContext(ctx, next)
+				}
+				i.SendContext(ctx, ch)
+			}
+		}
+		for _, ch := range chs {
+			close(ch)
+		}
+		close(next)
+	}()
+
+	return &ObservableImpl{
+		iterable: newChannelIterable(next),
+	}
+}
+
 // Last returns a new Observable which emit only last item.
 // Cannot be run in parallel.
 func (o *ObservableImpl) Last(opts ...Option) OptionalSingle {
