@@ -1420,9 +1420,11 @@ func (o *ObservableImpl) GroupByStringDynamic(distribution func(Item) string, op
 		for {
 			select {
 			case <-ctx.Done():
+				fmt.Println("[rxgo]GroupByStringDynamic received ctx.Done, breaking loop")
 				break loop
 			case i, ok := <-observe:
 				if !ok {
+					fmt.Println("[rxgo]GroupByStringDynamic is not ok, breaking loop")
 					break loop
 				}
 				idx := distribution(i)
@@ -1441,8 +1443,10 @@ func (o *ObservableImpl) GroupByStringDynamic(distribution func(Item) string, op
 			}
 		}
 		for _, ch := range chs {
+			fmt.Println("[rxgo]GroupByStringDynamic is closing all the channels")
 			close(ch)
 		}
+		fmt.Println("[rxgo]GroupByStringDynamic is closing the next channel")
 		close(next)
 	}()
 
@@ -2836,6 +2840,7 @@ func (o *ObservableImpl) WindowWithTime(timespan Duration, opts ...Option) Obser
 
 		go func() {
 			defer func() {
+				fmt.Println("[rxgo]WindowWithTime is exiting and closing channels")
 				mutex.Lock()
 				close(ch)
 				mutex.Unlock()
@@ -2848,6 +2853,7 @@ func (o *ObservableImpl) WindowWithTime(timespan Duration, opts ...Option) Obser
 				case <-done:
 					return
 				case <-time.After(timespan.duration()):
+					fmt.Println("[rxgo]WindowWithTime has passed its duration and is closing channels")
 					mutex.Lock()
 					if empty {
 						mutex.Unlock()
@@ -2873,6 +2879,7 @@ func (o *ObservableImpl) WindowWithTime(timespan Duration, opts ...Option) Obser
 				return
 			case item, ok := <-observe:
 				if !ok {
+					fmt.Println("[rxgo]WindowWithTime is not ok, closing channel")
 					close(done)
 					return
 				}
@@ -2880,11 +2887,13 @@ func (o *ObservableImpl) WindowWithTime(timespan Duration, opts ...Option) Obser
 					mutex.Lock()
 					if !item.SendContext(ctx, ch) {
 						mutex.Unlock()
+						fmt.Println("[rxgo]WindowWithTime did not SendContext, closing channel")
 						close(done)
 						return
 					}
 					mutex.Unlock()
-					if option.getErrorStrategy() == StopOnError {
+					if option.getErrorStrategy() == StopOnError {		
+						fmt.Println("[rxgo]WindowWithTime is StopOnError, closing channel")
 						close(done)
 						return
 					}
